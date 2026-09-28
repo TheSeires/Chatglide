@@ -1,0 +1,65 @@
+/* shadcn/ui "zinc" neutrals with the Chatglide violet as the accent.
+   Follows the system theme unless data-theme is set. */
+:root {
+  color-scheme: light;
+  --bg: #ffffff;
+  --fg: #09090b;
+  --muted: #71717a;
+  --border: #e4e4e7;
+  --soft: #f4f4f5;
+  --primary: #6d28d9;
+  --primary-fg: #ffffff;
+  --ring: #c4b5fd;
+  --switch-off: #e4e4e7;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --bg: #09090b;
+    --fg: #fafafa;
+    --muted: #a1a1aa;
+    --border: #27272a;
+    --soft: #27272a;
+    --primary: #8b5cf6;
+    --primary-fg: #ffffff;
+    --ring: #6d28d9;
+    --switch-off: #3f3f46;
+  }
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #09090b;
+  --fg: #fafafa;
+  --muted: #a1a1aa;
+  --border: #27272a;
+  --soft: #27272a;
+  --primary: #8b5cf6;
+  --primary-fg: #ffffff;
+  --ring: #6d28d9;
+  --switch-off: #3f3f46;
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+body {
+  font: 13px/1.45 system-ui, 'Segoe UI', sans-serif;
+  overflow-x: hidden;
+}
+
+button,
+input {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}

@@ -1,0 +1,10 @@
+/* Styles here are injected into the shadow root only. */
+:host {
+  /* Cover the player without blocking clicks on the video or its controls.
+     !important is needed to win over WXT's `:host { all: initial !important }` reset. */
+  position: absolute !important;
+  inset: 0 !important;
+  /* Above the control bar (59) and progress bar (60), below the settings menus. */
+  z-index: 61 !important;
+  pointer-events: none !important;
+}
