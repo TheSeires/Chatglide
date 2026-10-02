@@ -3,13 +3,23 @@
   import { LANGUAGE_NAMES, LOCALES, type Locale, type MessageKey } from '@/utils/locales';
   import {
     DEFAULT_SETTINGS,
+    exportSettings,
+    importSettings,
     loadSettings,
     saveSettings,
+    setChannelRule,
     settings,
+    type ChannelRuleMode,
+    type DisplayMode,
+    type EnterAnimation,
     type OverlaySettings,
     type PopupTheme,
+    type VisibilityDefault,
   } from '@/utils/settings.svelte';
+  import type { VisibilityRequest, VisibilityState } from '@/utils/visibility';
   import ColorSwatch from './ui/ColorSwatch.svelte';
+  import Segmented from './ui/Segmented.svelte';
+  import Select from './ui/Select.svelte';
   import Slider from './ui/Slider.svelte';
   import Switch from './ui/Switch.svelte';
 
@@ -63,6 +73,96 @@
   const themeLabel = $derived(
     t(THEMES.find((theme) => theme.value === settings.popupTheme)?.label ?? 'themeSystem'),
   );
+
+  const DISPLAY_MODES: { value: DisplayMode; label: MessageKey }[] = [
+    { value: 'list', label: 'displayList' },
+    { value: 'fade', label: 'displayFade' },
+  ];
+
+  const ANIMATIONS: { value: EnterAnimation; label: MessageKey }[] = [
+    { value: 'none', label: 'animNone' },
+    { value: 'fade', label: 'animFade' },
+    { value: 'slide', label: 'animSlide' },
+    { value: 'glide', label: 'animGlide' },
+    { value: 'pop', label: 'animPop' },
+  ];
+
+  // --- "This video" card: talks to the content script in the active YouTube tab ---
+
+  let tabId: number | undefined;
+  let tabState = $state<VisibilityState | null>(null);
+  let shortcut = $state('');
+
+  async function ask(request: VisibilityRequest) {
+    if (tabId === undefined) return;
+    try {
+      tabState = await browser.tabs.sendMessage(tabId, request, { frameId: 0 });
+    } catch {
+      tabState = null; // Not a YouTube tab, or the page loaded before the extension.
+    }
+  }
+
+  $effect(() => {
+    browser.tabs.query({ active: true, currentWindow: true }).then(([tab]) => {
+      tabId = tab?.id;
+      ask({ type: 'chatglide:get-state' });
+    });
+    browser.commands.getAll().then((commands) => {
+      shortcut = commands.find((c) => c.name === 'toggle-overlay')?.shortcut ?? '';
+    });
+  });
+
+  const RULE_OPTIONS: { value: ChannelRuleMode | 'default'; label: MessageKey }[] = [
+    { value: 'default', label: 'ruleDefault' },
+    { value: 'always', label: 'ruleAlways' },
+    { value: 'never', label: 'ruleNever' },
+  ];
+
+  const VISIBILITY_OPTIONS: { value: VisibilityDefault; label: MessageKey }[] = [
+    { value: 'auto', label: 'visibilityAuto' },
+    { value: 'manual', label: 'visibilityManual' },
+  ];
+
+  async function changeChannelRule(key: string, name: string, mode: ChannelRuleMode | null) {
+    await setChannelRule(key, name, mode);
+    // Give the tab a moment to receive the storage change before asking for its new state.
+    setTimeout(() => ask({ type: 'chatglide:get-state' }), 150);
+  }
+
+  function openShortcutSettings() {
+    browser.tabs.create({ url: 'chrome://extensions/shortcuts' });
+  }
+
+  let fileInput: HTMLInputElement | undefined = $state();
+  let backupStatus = $state<{ text: string; error: boolean } | null>(null);
+
+  function downloadSettings() {
+    const json = exportSettings(browser.runtime.getManifest().version);
+    const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `chatglide-settings-${new Date().toISOString().slice(0, 10)}.json`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    backupStatus = null;
+  }
+
+  async function uploadSettings(event: Event) {
+    const input = event.currentTarget as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+    const result = await importSettings(await file.text());
+    if (!result.ok) {
+      backupStatus = { text: t('importFailed'), error: true };
+      return;
+    }
+    const applied = t('importDone', { count: String(result.applied) });
+    const skipped = result.skipped.length
+      ? ' ' + t('importSkipped', { count: String(result.skipped.length) })
+      : '';
+    backupStatus = { text: applied + skipped, error: false };
+  }
 </script>
 
 {#snippet toggle(key: BooleanKey, label: MessageKey)}
@@ -149,6 +249,59 @@
 
   {#if loaded}
     <section>
+      <h2>{t('sectionThisVideo')}</h2>
+      {#if tabState?.videoId}
+        {#if tabState.channel}
+          <p class="channel">{tabState.channel.name}</p>
+        {/if}
+        {#if tabState.hasChat}
+          <Switch
+            label={t('showOnThisVideo')}
+            checked={tabState.enabled}
+            onchange={(on) => ask({ type: 'chatglide:set-video', on })}
+          />
+        {:else}
+          <p class="hint">{t('noChatHere')}</p>
+        {/if}
+        {#if tabState.channel}
+          {@const channel = tabState.channel}
+          <span class="field-label">{t('onThisChannel')}</span>
+          <Segmented
+            label={t('onThisChannel')}
+            value={tabState.rule ?? 'default'}
+            options={RULE_OPTIONS.map((option) => ({ value: option.value, label: t(option.label) }))}
+            onchange={(mode) => changeChannelRule(channel.key, channel.name, mode === 'default' ? null : mode)}
+          />
+        {/if}
+      {:else}
+        <p class="hint">{t('noVideo')}</p>
+      {/if}
+    </section>
+
+    <section>
+      <h2>{t('sectionVisibility')}</h2>
+      <Select
+        label={t('visibilityDefault')}
+        value={settings.visibilityDefault}
+        options={VISIBILITY_OPTIONS.map((option) => ({ value: option.value, label: t(option.label) }))}
+        onchange={(visibilityDefault) => {
+          saveSettings({ visibilityDefault });
+          setTimeout(() => ask({ type: 'chatglide:get-state' }), 150);
+        }}
+      />
+      {@render toggle('playerButton', 'playerButton')}
+      <div class="shortcut-row">
+        <span>{t('shortcut')}</span>
+        <span class="shortcut-value">
+          <kbd>{shortcut || t('shortcutNotSet')}</kbd>
+          <button type="button" class="link" onclick={openShortcutSettings}>
+            {t('changeShortcut')}
+          </button>
+        </span>
+      </div>
+    </section>
+
+    <section>
       <h2>{t('sectionChat')}</h2>
       {@render toggle('forceAllMessages', 'forceAllMessages')}
       {@render toggle('showTime', 'showTime')}
@@ -156,6 +309,27 @@
         {@render toggle('time24h', 'time24h')}
       {/if}
       {@render toggle('showNativeChat', 'showNativeChat')}
+    </section>
+
+    <section>
+      <h2>{t('sectionMessages')}</h2>
+      <Segmented
+        label={t('displayMode')}
+        value={settings.displayMode}
+        options={DISPLAY_MODES.map((mode) => ({ value: mode.value, label: t(mode.label) }))}
+        onchange={(displayMode) => saveSettings({ displayMode })}
+      />
+      {#if settings.displayMode === 'fade'}
+        {@render slider('messageLifetime', 'messageLifetime', 2, 60, 's')}
+        {@render slider('keepLast', 'keepLast', 0, 20, '')}
+        <p class="hint">{t('keepLastHint')}</p>
+      {/if}
+      <Select
+        label={t('animation')}
+        value={settings.enterAnimation}
+        options={ANIMATIONS.map((animation) => ({ value: animation.value, label: t(animation.label) }))}
+        onchange={(enterAnimation) => saveSettings({ enterAnimation })}
+      />
     </section>
 
     <section>
@@ -170,6 +344,9 @@
       <h2>{t('sectionBackground')}</h2>
       {@render colorOption('overlayBackground', 'overlayColor', 'overlayOpacity', 'overlayBackground')}
       {@render colorOption('messageBackground', 'messageColor', 'messageOpacity', 'messageBackground')}
+      {#if settings.overlayBackground || settings.messageBackground}
+        {@render slider('backgroundBlur', 'backgroundBlur', 0, 20)}
+      {/if}
     </section>
 
     <section>
@@ -211,6 +388,49 @@
       <p class="hint">{t('dragHint')}</p>
     </section>
 
+    <section>
+      <h2>{t('sectionChannelRules')}</h2>
+      {#each Object.entries(settings.channelRules) as [key, rule] (key)}
+        <div class="rule-row">
+          <span class="rule-name" title={key}>{rule.name}</span>
+          <span class="rule-mode {rule.mode}">
+            {t(rule.mode === 'always' ? 'ruleAlways' : 'ruleNever')}
+          </span>
+          <button
+            type="button"
+            class="remove"
+            title={t('removeRule', { channel: rule.name })}
+            aria-label={t('removeRule', { channel: rule.name })}
+            onclick={() => changeChannelRule(key, rule.name, null)}
+          >
+            ✕
+          </button>
+        </div>
+      {:else}
+        <p class="hint">{t('noChannelRules')}</p>
+      {/each}
+    </section>
+
+    <section>
+      <h2>{t('sectionBackup')}</h2>
+      <div class="backup-buttons">
+        <button type="button" class="outline" onclick={downloadSettings}>{t('exportSettings')}</button>
+        <button type="button" class="outline" onclick={() => fileInput?.click()}>
+          {t('importSettings')}
+        </button>
+      </div>
+      <input
+        bind:this={fileInput}
+        type="file"
+        accept=".json,application/json"
+        hidden
+        onchange={uploadSettings}
+      />
+      {#if backupStatus}
+        <p class="hint" class:error={backupStatus.error} role="status">{backupStatus.text}</p>
+      {/if}
+    </section>
+
     <footer>
       <button
         type="button"
@@ -220,6 +440,7 @@
             ...DEFAULT_SETTINGS,
             language: settings.language,
             popupTheme: settings.popupTheme,
+            channelRules: $state.snapshot(settings.channelRules),
           })}
       >
         {t('reset')}
@@ -373,6 +594,110 @@
     margin: 4px 0 0;
     color: var(--muted);
     font-size: 12px;
+  }
+
+  .hint.error {
+    color: #dc2626;
+  }
+
+  .channel {
+    margin: 0;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .field-label {
+    margin-top: 4px;
+  }
+
+  .shortcut-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-height: 28px;
+  }
+
+  .shortcut-value {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  kbd {
+    padding: 2px 6px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--soft);
+    font: 12px ui-monospace, monospace;
+  }
+
+  .link {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--primary);
+    cursor: pointer;
+  }
+
+  .link:hover {
+    text-decoration: underline;
+  }
+
+  .rule-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 28px;
+  }
+
+  .rule-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .rule-mode {
+    padding: 1px 8px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  .rule-mode.always {
+    background: var(--primary);
+    color: var(--primary-fg);
+  }
+
+  .rule-mode.never {
+    background: var(--soft);
+    color: var(--muted);
+  }
+
+  .remove {
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: 0;
+    border-radius: 4px;
+    background: none;
+    color: var(--muted);
+    cursor: pointer;
+  }
+
+  .remove:hover {
+    background: var(--soft);
+    color: var(--fg);
+  }
+
+  .backup-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
   }
 
   footer {

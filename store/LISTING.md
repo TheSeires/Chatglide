@@ -23,10 +23,13 @@ Chatglide shows YouTube live chat on top of the video instead of beside it, so t
 • YouTube's chat panel steps aside, so the video uses the whole width.
 • All messages or Top chat: switch right from the overlay header, or always open in all-messages mode.
 • Replays stay in sync: seeking back or forward in a chat replay updates the overlay.
-• Make it yours: overlay or per-message backgrounds, colors and opacity, font size, text shadow, paddings, message time (12- or 24-hour).
+• Disappearing messages: new messages show for a few seconds, then fade away. Keep the newest few on screen, or none.
+• Entry animations for new messages: fade, slide up, glide in from the side or pop.
+• Make it yours: overlay or per-message backgrounds, colors, opacity and blur, font size, text shadow, paddings, message time (12- or 24-hour).
 • Drag it anywhere, resize it from any edge or corner, or snap it to a corner.
+• You decide where it shows: turn it on or off for a video (player button, popup or Alt+C), set Always or Never per channel, or show it only when you ask.
 • Auto-hide the header so only the messages stay on screen until you hover.
-• Settings popup in light and dark theme.
+• Settings popup in light and dark theme, with export and import of your settings.
 • 10 languages: English, Ukrainian, Spanish, Portuguese, German, French, Italian, Japanese, Korean and Chinese. Picks your browser's language automatically.
 
 Private by design: no accounts, no tracking, no data leaves your browser. Settings are saved on your device only.
@@ -43,10 +46,13 @@ Chatglide показує чат YouTube поверх відео, а не збо�
 • Панель чату YouTube відходить убік, і відео займає всю ширину.
 • Усі повідомлення або найкраще в чаті: перемикайте просто в заголовку оверлею або завжди відкривайте всі повідомлення.
 • Записи трансляцій синхронізовані: перемотування вперед чи назад оновлює оверлей.
-• Налаштуйте під себе: фон усього оверлею або кожного повідомлення, кольори й непрозорість, розмір шрифту, тінь тексту, відступи, час повідомлень (12- або 24-годинний формат).
+• Зникаючі повідомлення: нові повідомлення показуються кілька секунд, а потім зникають. Кілька найновіших можна залишати на екрані.
+• Анімації появи нових повідомлень: поява, виїзд знизу, виїзд збоку або пружинка.
+• Налаштуйте під себе: фон усього оверлею або кожного повідомлення, кольори, непрозорість і розмиття, розмір шрифту, тінь тексту, відступи, час повідомлень (12- або 24-годинний формат).
 • Перетягуйте куди завгодно, змінюйте розмір за будь-який край чи кут або прикріплюйте до кута.
+• Ви вирішуєте, де він з’являється: вмикайте чи вимикайте його для відео (кнопка в плеєрі, вікно налаштувань або Alt+C), задавайте «Завжди» чи «Ніколи» для каналів або показуйте лише на вимогу.
 • Автоматично ховайте заголовок, щоб на екрані залишалися лише повідомлення, доки ви не наведете курсор.
-• Вікно налаштувань у світлій і темній темі.
+• Вікно налаштувань у світлій і темній темі, з експортом та імпортом налаштувань.
 • 10 мов: англійська, українська, іспанська, португальська, німецька, французька, італійська, японська, корейська та китайська. Мова браузера обирається автоматично.
 
 Приватність за замовчуванням: без облікових записів, без відстеження, жодні дані не залишають ваш браузер. Налаштування зберігаються лише на вашому пристрої.

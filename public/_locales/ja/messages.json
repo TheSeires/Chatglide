@@ -7,5 +7,8 @@
   },
   "extDescription": {
     "message": "YouTube のチャットを動画の横ではなく上に表示。ライブ配信とアーカイブ向けのカスタマイズ可能なチャットオーバーレイです。"
+  },
+  "cmdToggleOverlay": {
+    "message": "現在の動画のチャットオーバーレイを表示/非表示"
   }
 }

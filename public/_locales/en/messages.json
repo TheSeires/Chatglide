@@ -7,5 +7,8 @@
   },
   "extDescription": {
     "message": "Read YouTube live chat on top of the video instead of beside it. Customizable, read-only chat overlay for streams and replays."
+  },
+  "cmdToggleOverlay": {
+    "message": "Show or hide the chat overlay on the current video"
   }
 }

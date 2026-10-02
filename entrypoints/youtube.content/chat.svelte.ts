@@ -10,12 +10,19 @@ import { settings } from '@/utils/settings.svelte';
 const MAX_MESSAGES = 150;
 const HIDE_NATIVE_ATTR = 'data-chat-overlay';
 
+export interface ShownMessage extends ChatMessage {
+  /** Date.now() when the overlay received it. */
+  receivedAt: number;
+  /** Arrived in a bulk load (chat opened, replay seek) rather than as a new message. */
+  backlog: boolean;
+}
+
 // Lives outside the component so messages survive the overlay being re-mounted
 // when YouTube swaps the player.
 export const chat = $state({
   /** A chat frame is feeding us messages for the current video. */
   active: false,
-  messages: [] as ChatMessage[],
+  messages: [] as ShownMessage[],
   /** Bumped on every update so the list knows to auto-scroll. */
   revision: 0,
   /** Null until the chat frame has reported it. */
@@ -48,12 +55,17 @@ export function handleChatEvent(event: ChatEvent, frame: MessageEventSource | nu
 
 function updateChat(added: ChatMessage[], removed: string[]) {
   let messages = chat.messages;
+  // The first batch after a reset, or one that replaces everything (a replay seek), is history.
+  const backlog = messages.length === 0 || removed.length >= messages.length;
   if (removed.length) {
     for (const id of removed) ids.delete(id);
     messages = messages.filter((m) => ids.has(m.id));
   }
 
-  const fresh = added.filter((m) => !ids.has(m.id));
+  const receivedAt = Date.now();
+  const fresh = added
+    .filter((m) => !ids.has(m.id))
+    .map((m): ShownMessage => ({ ...m, receivedAt, backlog }));
   for (const m of fresh) ids.add(m.id);
   messages = messages.concat(fresh);
 
@@ -67,10 +79,10 @@ function updateChat(added: ChatMessage[], removed: string[]) {
 }
 
 /** Hides YouTube's chat panel via PAGE_CSS while the overlay replaces it. */
-export function syncNativeChatVisibility() {
+export function syncNativeChatVisibility(overlayEnabled: () => boolean) {
   return $effect.root(() => {
     $effect(() => {
-      const hide = chat.active && !settings.showNativeChat;
+      const hide = chat.active && overlayEnabled() && !settings.showNativeChat;
       document.documentElement.toggleAttribute(HIDE_NATIVE_ATTR, hide);
     });
   });

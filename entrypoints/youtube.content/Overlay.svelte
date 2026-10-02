@@ -1,9 +1,12 @@
 <script lang="ts">
+  import { backOut, cubicOut } from 'svelte/easing';
+  import { fade, fly, scale, slide, type TransitionConfig } from 'svelte/transition';
   import { saveSettings, settings, withOpacity } from '@/utils/settings.svelte';
   import type { ChatMode } from '@/utils/chat';
   import { t } from '@/utils/i18n';
   import { to24Hour } from '@/utils/time';
-  import { chat, setChatMode } from './chat.svelte';
+  import { chat, setChatMode, type ShownMessage } from './chat.svelte';
+  import { overlayEnabled, setVideoOverride } from './visibility.svelte';
 
   const MARGIN = 12;
   // Keeps the overlay clear of YouTube's control bar and progress bar.
@@ -85,6 +88,70 @@
 
   const modeLabel = (mode: ChatMode) => t(mode === 'all' ? 'modeAll' : 'modeTop');
 
+  const fadeMode = $derived(settings.displayMode === 'fade');
+  let now = $state(Date.now());
+
+  $effect(() => {
+    if (!fadeMode) return;
+    const timer = setInterval(() => (now = Date.now()), 250);
+    return () => clearInterval(timer);
+  });
+
+  // In fade mode a message shows for `messageLifetime` seconds; the newest `keepLast` always stay.
+  const visibleMessages = $derived.by(() => {
+    if (!fadeMode) return chat.messages;
+    const lifetime = settings.messageLifetime * 1000;
+    const keepFrom = chat.messages.length - settings.keepLast;
+    return chat.messages.filter(
+      (m, i) => i >= keepFrom || (!m.backlog && m.receivedAt + lifetime > now),
+    );
+  });
+
+  function enterAnimation(node: Element): TransitionConfig | null {
+    switch (settings.enterAnimation) {
+      case 'fade':
+        return fade(node, { duration: 250 });
+      case 'slide':
+        return fly(node, { y: 16, duration: 250, easing: cubicOut });
+      case 'glide':
+        return fly(node, { x: settings.x >= 0.5 ? 48 : -48, duration: 320, easing: cubicOut });
+      case 'pop':
+        return scale(node, { start: 0.8, duration: 260, easing: backOut });
+      default:
+        return null;
+    }
+  }
+
+  /** Runs several transitions on one node at once, each with its own duration and easing. */
+  function combine(...configs: TransitionConfig[]): TransitionConfig {
+    const duration = Math.max(...configs.map((c) => c.duration ?? 0));
+    return {
+      duration,
+      css: (t) =>
+        configs
+          .map((c) => {
+            const local = Math.min(1, (t * duration) / (c.duration || 1));
+            const eased = (c.easing ?? ((x: number) => x))(local);
+            return c.css?.(eased, 1 - eased) ?? '';
+          })
+          .join(';'),
+    };
+  }
+
+  // Fade mode: messages grow/shrink in height, so the bottom-anchored list never jumps or shows an empty panel.
+  function enter(node: Element, message: ShownMessage): TransitionConfig {
+    if (message.backlog) return { duration: 0 };
+    const animation = enterAnimation(node);
+    if (!fadeMode) return animation ?? { duration: 0 };
+    const grow = slide(node, { duration: 250, easing: cubicOut });
+    return animation ? combine(grow, animation) : grow;
+  }
+
+  function leave(node: Element): TransitionConfig {
+    if (!fadeMode) return { duration: 0 };
+    return combine(slide(node, { duration: 400, easing: cubicOut }), fade(node, { duration: 300 }));
+  }
+
   /** Runs `onMove(dx, dy)` while the pointer is held, then persists the settings. */
   function track(event: PointerEvent, onMove: (dx: number, dy: number) => void) {
     if (event.button !== 0) return;
@@ -139,11 +206,12 @@
 </script>
 
 <div class="frame" bind:clientWidth={frameWidth} bind:clientHeight={frameHeight}>
-  {#if chat.active}
+  {#if chat.active && overlayEnabled()}
     <!-- svelte-ignore a11y_no_static_element_interactions (hover only reveals the header) -->
     <div
       class="overlay"
       class:collapsed
+      class:fade-mode={fadeMode}
       style:left="{left}px"
       style:top="{top}px"
       style:width="{width}px"
@@ -160,7 +228,9 @@
       style:--list-padding="{settings.listPadding}px"
       style:--message-padding="{settings.messagePadding}px"
       style:--message-gap="{settings.messageGap}px"
+      style:--blur="{settings.backgroundBlur}px"
       class:no-background={!settings.overlayBackground}
+      class:message-background={settings.messageBackground}
       bind:offsetHeight={boxHeight}
       onmouseenter={() => (hovering = true)}
       onmouseleave={() => (hovering = false)}
@@ -181,16 +251,31 @@
             {:else}
               <span>{t('liveChat')}</span>
             {/if}
-            <button type="button" onclick={() => (collapsed = !collapsed)}>
-              {collapsed ? t('show') : t('hide')}
-            </button>
+            <span class="header-actions">
+              <button type="button" onclick={() => (collapsed = !collapsed)}>
+                {collapsed ? t('show') : t('hide')}
+              </button>
+              <button
+                type="button"
+                class="close"
+                title={t('turnOffForVideo')}
+                aria-label={t('turnOffForVideo')}
+                onclick={() => setVideoOverride(false)}
+              >
+                ✕
+              </button>
+            </span>
           </header>
         </div>
       </div>
       {#if !collapsed}
-        <ol bind:this={list} onscroll={onScroll}>
-          {#each chat.messages as message (message.id)}
-            <li>
+        <ol
+          bind:this={list}
+          onscroll={onScroll}
+          class:emptying={fadeMode && visibleMessages.length === 0}
+        >
+          {#each visibleMessages as message (message.id)}
+            <li in:enter={message} out:leave>
               {#if settings.showTime && message.time}
                 <span class="time">{settings.time24h ? to24Hour(message.time) : message.time}</span>
               {/if}
@@ -204,7 +289,9 @@
               {/each}
             </li>
           {:else}
-            <li class="placeholder">{t('waiting')}</li>
+            {#if !fadeMode}
+              <li class="placeholder">{t('waiting')}</li>
+            {/if}
           {/each}
         </ol>
         {#each HANDLES as handle}
@@ -234,7 +321,7 @@
     font-family: Roboto, Arial, sans-serif;
     line-height: 1.4;
     pointer-events: auto;
-    backdrop-filter: blur(4px);
+    backdrop-filter: blur(var(--blur));
   }
 
   .overlay.no-background {
@@ -272,6 +359,10 @@
     touch-action: none;
   }
 
+  .no-background.message-background header {
+    backdrop-filter: blur(var(--blur));
+  }
+
   .no-background header {
     margin-bottom: var(--message-gap);
     border-radius: 8px;
@@ -292,6 +383,15 @@
     background: rgb(255 255 255 / 0.25);
   }
 
+  .header-actions {
+    display: flex;
+    gap: 4px;
+  }
+
+  button.close {
+    padding: 2px 6px;
+  }
+
   ol {
     flex: 1;
     min-height: 0;
@@ -304,10 +404,61 @@
     scrollbar-color: rgb(255 255 255 / 0.3) transparent;
   }
 
+  /* Fade mode: a fixed see-through area where messages stack from the bottom, like stream chat overlays. */
+  .overlay.fade-mode {
+    background: transparent;
+    backdrop-filter: none;
+  }
+
+  .fade-mode:not(.no-background) header {
+    margin-bottom: var(--message-gap);
+    border-radius: 8px;
+    background: var(--overlay-bg);
+    backdrop-filter: blur(var(--blur));
+  }
+
+  .fade-mode ol {
+    flex: 0 1 auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    margin-top: auto;
+    padding: var(--list-padding);
+    border-radius: 8px;
+    background: var(--overlay-bg);
+    overflow: hidden;
+    transition: opacity 0.3s ease;
+    /* Replays each time the panel reappears (from display: none), so it fades in with its first message. */
+    animation: panel-in 0.25s ease;
+  }
+
+  @keyframes panel-in {
+    from {
+      opacity: 0;
+    }
+  }
+
+  /* The last message is leaving: fade the whole panel with it. */
+  .fade-mode ol.emptying {
+    opacity: 0;
+  }
+
+  .fade-mode:not(.no-background) ol {
+    backdrop-filter: blur(var(--blur));
+  }
+
+  .fade-mode ol:not(:has(li)) {
+    display: none;
+  }
+
   li {
     padding: var(--message-padding);
     border-radius: 4px;
     background: var(--message-bg);
+  }
+
+  .message-background li {
+    backdrop-filter: blur(var(--blur));
   }
 
   li + li {

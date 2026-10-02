@@ -2,7 +2,7 @@
   "name": "chatglide",
   "description": "Read YouTube live chat on top of the video instead of beside it",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "type": "module",
   "scripts": {
     "dev": "wxt",

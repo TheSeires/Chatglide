@@ -14,5 +14,11 @@ export default defineConfig({
     action: {
       default_title: '__MSG_extShortName__',
     },
+    commands: {
+      'toggle-overlay': {
+        suggested_key: { default: 'Alt+C' },
+        description: '__MSG_cmdToggleOverlay__',
+      },
+    },
   },
 });

@@ -1,110 +1,83 @@
 import { storage } from '#imports';
 
-import type { Locale } from './locales';
+import {
+  DEFAULT_SETTINGS,
+  isRecord,
+  normalizeSettings,
+  SCHEMA_VERSION,
+  type ChannelRuleMode,
+  type OverlaySettings,
+  type RawSettings,
+} from './settings-schema';
 
-export type PopupTheme = 'system' | 'light' | 'dark';
+export * from './settings-schema';
 
-export interface OverlaySettings {
-  /** UI language; 'auto' follows the browser's languages. */
-  language: 'auto' | Locale;
-  /** Color theme of the settings popup (not the overlay). */
-  popupTheme: PopupTheme;
+// --- Storage -----------------------------------------------------------------
 
-  /** Keep YouTube's own chat panel visible instead of hiding it. */
-  showNativeChat: boolean;
-  /** Switch YouTube's chat from "Top chat" to "Live chat" (all messages) when it loads. */
-  forceAllMessages: boolean;
-  showTime: boolean;
-  /** Show live chat times as 24-hour ("19:41") instead of YouTube's 12-hour style. */
-  time24h: boolean;
-  fontSize: number;
-
-  /** Hide the header after `autoHideDelay` seconds without the pointer over the overlay. */
-  autoHideHeader: boolean;
-  autoHideDelay: number;
-
-  textShadow: boolean;
-  textShadowColor: string;
-  /** Percent. */
-  textShadowOpacity: number;
-  /** px. */
-  textShadowBlur: number;
-  textShadowOffset: number;
-
-  overlayBackground: boolean;
-  overlayColor: string;
-  /** Percent. */
-  overlayOpacity: number;
-  messageBackground: boolean;
-  messageColor: string;
-  /** Percent. */
-  messageOpacity: number;
-
-  /** Paddings and gap in px. */
-  headerPadding: number;
-  listPadding: number;
-  messagePadding: number;
-  messageGap: number;
-
-  width: number;
-  height: number;
-  /** Position within the player's free space, 0–1 per axis (x 1, y 0 = top right). */
-  x: number;
-  y: number;
-}
-
-export const DEFAULT_SETTINGS: OverlaySettings = {
-  language: 'auto',
-  popupTheme: 'system',
-  showNativeChat: false,
-  forceAllMessages: true,
-  showTime: false,
-  time24h: false,
-  fontSize: 14,
-
-  autoHideHeader: false,
-  autoHideDelay: 3,
-
-  textShadow: true,
-  textShadowColor: '#000000',
-  textShadowOpacity: 90,
-  textShadowBlur: 2,
-  textShadowOffset: 1,
-
-  overlayBackground: true,
-  overlayColor: '#000000',
-  overlayOpacity: 55,
-  messageBackground: false,
-  messageColor: '#000000',
-  messageOpacity: 55,
-
-  headerPadding: 8,
-  listPadding: 8,
-  messagePadding: 2,
-  messageGap: 4,
-
-  width: 340,
-  height: 360,
-  x: 1,
-  y: 0,
-};
-
-// Partial so settings added in later versions fall back to their defaults.
-const settingsItem = storage.defineItem<Partial<OverlaySettings>>('local:settings', {
-  fallback: {},
-});
+const settingsItem = storage.defineItem<RawSettings>('local:settings', { fallback: {} });
 
 export const settings = $state<OverlaySettings>({ ...DEFAULT_SETTINGS });
 
+function apply(raw: unknown) {
+  Object.assign(settings, DEFAULT_SETTINGS, normalizeSettings(raw).settings);
+}
+
 /** Loads stored settings and keeps `settings` in sync with changes from other pages. */
 export async function loadSettings(): Promise<() => void> {
-  Object.assign(settings, DEFAULT_SETTINGS, await settingsItem.getValue());
-  return settingsItem.watch((value) => Object.assign(settings, DEFAULT_SETTINGS, value));
+  apply(await settingsItem.getValue());
+  return settingsItem.watch(apply);
 }
 
 export function saveSettings(patch: Partial<OverlaySettings> = {}) {
   Object.assign(settings, patch);
-  return settingsItem.setValue($state.snapshot(settings));
+  return settingsItem.setValue({ ...$state.snapshot(settings), schema: SCHEMA_VERSION });
+}
+
+/** Sets or (with `mode` null) removes the rule for a channel. */
+export function setChannelRule(key: string, name: string, mode: ChannelRuleMode | null) {
+  const rules = { ...$state.snapshot(settings.channelRules) };
+  if (mode) rules[key] = { mode, name };
+  else delete rules[key];
+  return saveSettings({ channelRules: rules });
+}
+
+// --- Import / export ---------------------------------------------------------
+
+const EXPORT_APP = 'chatglide';
+
+export function exportSettings(appVersion: string): string {
+  const file = {
+    app: EXPORT_APP,
+    schema: SCHEMA_VERSION,
+    appVersion,
+    exportedAt: new Date().toISOString(),
+    settings: $state.snapshot(settings),
+  };
+  return JSON.stringify(file, null, 2);
+}
+
+export type ImportResult =
+  | { ok: true; applied: number; skipped: string[] }
+  | { ok: false };
+
+/**
+ * Applies an exported settings file. Settings missing from the file are reset to defaults,
+ * except channel rules: files from before they existed shouldn't wipe the current ones.
+ */
+export async function importSettings(text: string): Promise<ImportResult> {
+  let file: unknown;
+  try {
+    file = JSON.parse(text);
+  } catch {
+    return { ok: false };
+  }
+  if (!isRecord(file) || file.app !== EXPORT_APP || !isRecord(file.settings)) return { ok: false };
+
+  const schema = typeof file.schema === 'number' ? file.schema : 1;
+  const { settings: imported, skipped } = normalizeSettings({ ...file.settings, schema });
+  Object.assign(settings, DEFAULT_SETTINGS, { channelRules: settings.channelRules });
+  await saveSettings(imported);
+  return { ok: true, applied: Object.keys(imported).length, skipped };
 }
 
 /** '#rrggbb' + opacity percent -> CSS color. */

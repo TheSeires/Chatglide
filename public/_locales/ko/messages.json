@@ -7,5 +7,8 @@
   },
   "extDescription": {
     "message": "YouTube 채팅을 동영상 옆이 아닌 위에서 읽으세요. 라이브 스트림과 다시 보기를 위한 맞춤형 채팅 오버레이입니다."
+  },
+  "cmdToggleOverlay": {
+    "message": "현재 동영상의 채팅 오버레이 표시/숨기기"
   }
 }

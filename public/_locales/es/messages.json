@@ -7,5 +7,8 @@
   },
   "extDescription": {
     "message": "Lee el chat de YouTube sobre el vídeo en lugar de a un lado. Chat superpuesto y personalizable para directos y repeticiones."
+  },
+  "cmdToggleOverlay": {
+    "message": "Mostrar u ocultar el chat superpuesto en el vídeo actual"
   }
 }
