@@ -17,10 +17,12 @@ The name, short name and short description in the store come from the package it
 ### Detailed description (English)
 
 ```
-Chatglide shows YouTube live chat on top of the video instead of beside it, so theater mode and fullscreen get their full width back. It's a read-only overlay: you read the chat, the video stays big.
+Chatglide shows YouTube live chat on top of the video instead of beside it, so theater mode and fullscreen get their full width back. Read and write chat without the side panel: the video stays big.
 
 • Chat right on the video: a clean overlay in the corner of the player, also in fullscreen.
 • YouTube's chat panel steps aside, so the video uses the whole width.
+• Chat right from the overlay: a message box with an emoji picker, sent through YouTube's own chat (sign-in required). Show it always or only on hover, and style it.
+• Profile pictures next to names, if you like.
 • All messages or Top chat: switch right from the overlay header, or always open in all-messages mode.
 • Replays stay in sync: seeking back or forward in a chat replay updates the overlay.
 • Disappearing messages: new messages show for a few seconds, then fade away. Keep the newest few on screen, or none.
@@ -40,10 +42,12 @@ Chatglide is not affiliated with or endorsed by YouTube or Google.
 ### Detailed description (Ukrainian)
 
 ```
-Chatglide показує чат YouTube поверх відео, а не збоку, тож режим кінотеатру та повноекранний режим знову отримують усю ширину. Це оверлей лише для читання: ви читаєте чат, а відео залишається великим.
+Chatglide показує чат YouTube поверх відео, а не збоку, тож режим кінотеатру та повноекранний режим знову отримують усю ширину. Читайте й пишіть у чат без бічної панелі: відео залишається великим.
 
 • Чат прямо на відео: акуратний оверлей у куті плеєра, зокрема в повноекранному режимі.
 • Панель чату YouTube відходить убік, і відео займає всю ширину.
+• Пишіть просто з оверлею: поле введення з емодзі, повідомлення надсилаються через чат YouTube (потрібно увійти). Показуйте його завжди або лише при наведенні та налаштовуйте вигляд.
+• Аватари поруч з іменами, за бажанням.
 • Усі повідомлення або найкраще в чаті: перемикайте просто в заголовку оверлею або завжди відкривайте всі повідомлення.
 • Записи трансляцій синхронізовані: перемотування вперед чи назад оновлює оверлей.
 • Зникаючі повідомлення: нові повідомлення показуються кілька секунд, а потім зникають. Кілька найновіших можна залишати на екрані.
@@ -65,18 +69,18 @@ Chatglide не пов'язаний з YouTube чи Google і не схвален
 | Field | File |
 | --- | --- |
 | Store icon (128×128) | `images/store-icon-128.png` |
-| Screenshots (1280×800) | `images/screenshot-1-overlay.jpg` … `screenshot-5-languages.jpg`, in that order |
+| Screenshots (1280×800) | `images/screenshot-1-overlay.jpg` … `screenshot-5-visibility.jpg`, in that order |
 | Small promo tile (440×280) | `images/promo-small-440x280.jpg` |
 | Marquee promo tile (1400×560) | `images/promo-marquee-1400x560.jpg` |
 
-The screenshots use a public-domain NASA video and made-up chat messages and usernames, so no real viewers appear in the listing.
+The screenshots use a public-domain NASA video and made-up chat messages, usernames and letter avatars, so no real viewers appear in the listing.
 
 ## Privacy practices tab
 
 **Single purpose:**
 
 ```
-Chatglide shows the live chat of the YouTube video you are watching as a customizable, read-only overlay on top of the video player.
+Chatglide shows the live chat of the YouTube video you are watching as a customizable overlay on top of the video player, and lets the user post to that chat through YouTube's own chat box.
 ```
 
 **Permission justifications:**
@@ -87,12 +91,12 @@ Chatglide shows the live chat of the YouTube video you are watching as a customi
   ```
 - Host permission `*://*.youtube.com/*` (content scripts):
   ```
-  Needed to read the chat messages YouTube already displays on the watch page and render them in an overlay on top of the video player. The extension only runs on youtube.com.
+  Needed to read the chat messages YouTube already displays on the watch page and render them in an overlay on top of the video player, and to pass messages the user types in the overlay to YouTube's own chat box. The extension only runs on youtube.com.
   ```
 
 **Remote code:** No, I am not using remote code. (All JavaScript is bundled in the package.)
 
-**Data usage:** tick none of the data types. The extension does not collect or transmit user data. Then tick all three certifications (no selling, no unrelated use, no creditworthiness use).
+**Data usage:** tick **Personal communications** only (since 1.2.0: messages the user types in the overlay are handed to YouTube's chat box on the page; nothing is sent to any other server). Then tick all three certifications (no selling, no unrelated use, no creditworthiness use).
 
 **Privacy policy URL:** link to `PRIVACY.md` in the GitHub repository, e.g.
 `https://github.com/TheSeires/Chatglide/blob/main/PRIVACY.md` (the repo must be public so the policy is reachable).

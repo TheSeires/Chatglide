@@ -2,10 +2,11 @@
   import { backOut, cubicOut } from 'svelte/easing';
   import { fade, fly, scale, slide, type TransitionConfig } from 'svelte/transition';
   import { saveSettings, settings, withOpacity } from '@/utils/settings.svelte';
-  import type { ChatMode } from '@/utils/chat';
+  import { isAvatarUrl, type ChatMode } from '@/utils/chat';
   import { t } from '@/utils/i18n';
   import { to24Hour } from '@/utils/time';
   import { chat, setChatMode, type ShownMessage } from './chat.svelte';
+  import Composer from './Composer.svelte';
   import { overlayEnabled, setVideoOverride } from './visibility.svelte';
 
   const MARGIN = 12;
@@ -279,6 +280,9 @@
               {#if settings.showTime && message.time}
                 <span class="time">{settings.time24h ? to24Hour(message.time) : message.time}</span>
               {/if}
+              {#if settings.showAvatars && message.avatar && isAvatarUrl(message.avatar)}
+                <img class="avatar" src={message.avatar} alt="" loading="lazy" referrerpolicy="no-referrer" />
+              {/if}
               <span class="author {message.authorType}">{message.author}</span>
               {#each message.runs as run}
                 {#if 'emoji' in run}
@@ -294,6 +298,9 @@
             {/if}
           {/each}
         </ol>
+        {#if settings.chatInput && (chat.input.available || chat.input.reason)}
+          <Composer {hovering} />
+        {/if}
         {#each HANDLES as handle}
           <!-- svelte-ignore a11y_no_static_element_interactions (mouse-only resize handle) -->
           <div class="handle {handle}" onpointerdown={(e) => startResize(e, handle)}></div>
@@ -469,6 +476,14 @@
     margin-right: 6px;
     font-size: 0.85em;
     color: rgb(255 255 255 / 0.5);
+  }
+
+  .avatar {
+    width: 1.5em;
+    height: 1.5em;
+    margin-right: 6px;
+    border-radius: 50%;
+    vertical-align: middle;
   }
 
   .author {

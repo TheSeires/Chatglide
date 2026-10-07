@@ -39,6 +39,7 @@ export interface OverlaySettings {
   showNativeChat: boolean;
   /** Switch YouTube's chat from "Top chat" to "Live chat" (all messages) when it loads. */
   forceAllMessages: boolean;
+  showAvatars: boolean;
   showTime: boolean;
   /** Show live chat times as 24-hour ("19:41") instead of YouTube's 12-hour style. */
   time24h: boolean;
@@ -50,6 +51,26 @@ export interface OverlaySettings {
   /** In 'fade' mode, the newest this-many messages never disappear. */
   keepLast: number;
   enterAnimation: EnterAnimation;
+
+  /** Show an input that sends messages through YouTube's own chat box. */
+  chatInput: boolean;
+  chatInputEmoji: boolean;
+  /** Hide the input after `chatInputHideDelay` seconds without the pointer over the overlay. */
+  chatInputAutoHide: boolean;
+  chatInputHideDelay: number;
+  inputFontSize: number;
+  inputTextColor: string;
+  inputBackgroundColor: string;
+  /** Percent. */
+  inputBackgroundOpacity: number;
+  inputBorder: boolean;
+  inputBorderColor: string;
+  /** Percent. */
+  inputBorderOpacity: number;
+  /** px, like the radius and padding below. */
+  inputBorderWidth: number;
+  inputRadius: number;
+  inputPadding: number;
 
   /** Hide the header after `autoHideDelay` seconds without the pointer over the overlay. */
   autoHideHeader: boolean;
@@ -95,6 +116,7 @@ export const DEFAULT_SETTINGS: OverlaySettings = {
   channelRules: {},
   showNativeChat: false,
   forceAllMessages: true,
+  showAvatars: true,
   showTime: false,
   time24h: false,
   fontSize: 14,
@@ -103,6 +125,21 @@ export const DEFAULT_SETTINGS: OverlaySettings = {
   messageLifetime: 10,
   keepLast: 3,
   enterAnimation: 'none',
+
+  chatInput: true,
+  chatInputEmoji: true,
+  chatInputAutoHide: false,
+  chatInputHideDelay: 3,
+  inputFontSize: 14,
+  inputTextColor: '#ffffff',
+  inputBackgroundColor: '#ffffff',
+  inputBackgroundOpacity: 12,
+  inputBorder: false,
+  inputBorderColor: '#ffffff',
+  inputBorderOpacity: 35,
+  inputBorderWidth: 1,
+  inputRadius: 8,
+  inputPadding: 6,
 
   autoHideHeader: false,
   autoHideDelay: 3,
@@ -155,6 +192,7 @@ const SCHEMA: Record<keyof OverlaySettings, FieldSpec> = {
   channelRules: { type: 'channelRules' },
   showNativeChat: bool,
   forceAllMessages: bool,
+  showAvatars: bool,
   showTime: bool,
   time24h: bool,
   fontSize: num(8, 48),
@@ -162,6 +200,20 @@ const SCHEMA: Record<keyof OverlaySettings, FieldSpec> = {
   messageLifetime: num(1, 600),
   keepLast: num(0, 100),
   enterAnimation: oneOf(ENTER_ANIMATIONS),
+  chatInput: bool,
+  chatInputEmoji: bool,
+  chatInputAutoHide: bool,
+  chatInputHideDelay: num(1, 120),
+  inputFontSize: num(8, 48),
+  inputTextColor: color,
+  inputBackgroundColor: color,
+  inputBackgroundOpacity: num(0, 100),
+  inputBorder: bool,
+  inputBorderColor: color,
+  inputBorderOpacity: num(0, 100),
+  inputBorderWidth: num(0, 10),
+  inputRadius: num(0, 40),
+  inputPadding: num(0, 40),
   autoHideHeader: bool,
   autoHideDelay: num(1, 120),
   textShadow: bool,

@@ -2,7 +2,7 @@
 
 <img src="assets/brand/icon.svg" alt="" width="96" align="right" />
 
-Read YouTube live chat on top of the video instead of beside it. Chatglide is a browser extension that shows a customizable, read-only chat overlay on YouTube live streams and replays, so chat no longer takes space from the video.
+Read YouTube live chat on top of the video instead of beside it. Chatglide is a browser extension that shows a customizable chat overlay on YouTube live streams and replays, with a message box that posts through YouTube's own chat, so chat no longer takes space from the video.
 
 Built with [WXT](https://wxt.dev) + Svelte 5 + TypeScript, Manifest V3. Targets Chromium browsers (Chrome, Edge, Brave).
 
@@ -27,9 +27,10 @@ To load a build by hand: open `chrome://extensions`, enable Developer mode, clic
 
 ## Layout
 
-- `entrypoints/youtube-chat.content.ts` — runs inside YouTube's live chat iframe (live and replay), reads each new message from the DOM and posts it to the watch page.
+- `entrypoints/youtube-chat.content/index.ts` — runs inside YouTube's live chat iframe (live and replay), reads each new message from the DOM and posts it to the watch page.
 - `entrypoints/youtube.content/` — content script that mounts the Svelte overlay in a Shadow DOM root inside `#movie_player`, so it stays visible in fullscreen and YouTube CSS can't leak in. `autoMount()` re-mounts it when YouTube swaps the player during in-app navigation. While a chat is active it moves YouTube's own chat panel off-screen (it keeps loading messages) so the video gets the full width.
 - `utils/chat.ts` — message types shared by both content scripts.
+- `entrypoints/youtube-chat.content/chatbox.ts` — drives YouTube's own chat box inside the chat iframe: reports whether the user can post (or YouTube's reason why not), types and sends the overlay's messages, and reads YouTube's emoji picker. The overlay side is `entrypoints/youtube.content/Composer.svelte`.
 - `entrypoints/youtube.content/visibility.svelte.ts` — whether the overlay shows on the current video: a temporary per-video on/off, then per-channel rules (keyed by `@handle` or channel ID), then the global default. Driven by the player-controls button (`PlayerButton.svelte`), the overlay header, the popup and the `Alt+C` command (forwarded by `entrypoints/background.ts`).
 - `utils/locales.ts`, `utils/i18n.ts` — UI translations (en, uk, es, pt-BR, de, fr, it, ja, ko, zh-CN) and `t()`. The language defaults to the first supported browser language, else English. `public/_locales/` translates the extension's name and description.
 - `utils/settings-schema.ts` — every setting with its default and valid range, plus versioned migrations. Stored settings and imported files both go through `normalizeSettings()`, so data from older or newer versions loads safely: new settings get defaults, unknown or invalid values are skipped.

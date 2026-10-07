@@ -29,7 +29,13 @@
   type NumberKey = {
     [K in keyof OverlaySettings]: OverlaySettings[K] extends number ? K : never;
   }[keyof OverlaySettings];
-  type ColorKey = 'overlayColor' | 'messageColor' | 'textShadowColor';
+  type ColorKey =
+    | 'overlayColor'
+    | 'messageColor'
+    | 'textShadowColor'
+    | 'inputBackgroundColor'
+    | 'inputBorderColor'
+    | 'inputTextColor';
 
   const CORNERS: { label: MessageKey; x: number; y: number }[] = [
     { label: 'topLeft', x: 0, y: 0 },
@@ -123,10 +129,14 @@
     { value: 'manual', label: 'visibilityManual' },
   ];
 
+  // The tab applies settings changes asynchronously, so ask for its state again shortly after.
+  function refreshTabState() {
+    for (const delay of [150, 600]) setTimeout(() => ask({ type: 'chatglide:get-state' }), delay);
+  }
+
   async function changeChannelRule(key: string, name: string, mode: ChannelRuleMode | null) {
     await setChannelRule(key, name, mode);
-    // Give the tab a moment to receive the storage change before asking for its new state.
-    setTimeout(() => ask({ type: 'chatglide:get-state' }), 150);
+    refreshTabState();
   }
 
   function openShortcutSettings() {
@@ -183,6 +193,29 @@
     {unit}
     onchange={(value) => saveSettings({ [key]: value })}
   />
+{/snippet}
+
+{#snippet colorRow(colorKey: ColorKey, opacityKey: NumberKey | null, label: MessageKey)}
+  <div class="labeled-color" class:inline={!opacityKey}>
+    <span>{t(label)}</span>
+    <div class="color-row">
+      <ColorSwatch
+        label={t(label)}
+        value={settings[colorKey]}
+        onchange={(value) => saveSettings({ [colorKey]: value })}
+      />
+      {#if opacityKey}
+        <Slider
+          ariaLabel={t('opacity')}
+          value={settings[opacityKey]}
+          min={0}
+          max={100}
+          unit="%"
+          onchange={(value) => saveSettings({ [opacityKey]: value })}
+        />
+      {/if}
+    </div>
+  </div>
 {/snippet}
 
 <!-- A switch that reveals a color swatch + opacity slider when on. -->
@@ -268,7 +301,7 @@
           <span class="field-label">{t('onThisChannel')}</span>
           <Segmented
             label={t('onThisChannel')}
-            value={tabState.rule ?? 'default'}
+            value={settings.channelRules[channel.key]?.mode ?? 'default'}
             options={RULE_OPTIONS.map((option) => ({ value: option.value, label: t(option.label) }))}
             onchange={(mode) => changeChannelRule(channel.key, channel.name, mode === 'default' ? null : mode)}
           />
@@ -286,7 +319,7 @@
         options={VISIBILITY_OPTIONS.map((option) => ({ value: option.value, label: t(option.label) }))}
         onchange={(visibilityDefault) => {
           saveSettings({ visibilityDefault });
-          setTimeout(() => ask({ type: 'chatglide:get-state' }), 150);
+          refreshTabState();
         }}
       />
       {@render toggle('playerButton', 'playerButton')}
@@ -304,6 +337,7 @@
     <section>
       <h2>{t('sectionChat')}</h2>
       {@render toggle('forceAllMessages', 'forceAllMessages')}
+      {@render toggle('showAvatars', 'showAvatars')}
       {@render toggle('showTime', 'showTime')}
       {#if settings.showTime}
         {@render toggle('time24h', 'time24h')}
@@ -330,6 +364,28 @@
         options={ANIMATIONS.map((animation) => ({ value: animation.value, label: t(animation.label) }))}
         onchange={(enterAnimation) => saveSettings({ enterAnimation })}
       />
+    </section>
+
+    <section>
+      <h2>{t('sectionChatInput')}</h2>
+      {@render toggle('chatInput', 'chatInput')}
+      {#if settings.chatInput}
+        {@render toggle('chatInputEmoji', 'chatInputEmoji')}
+        {@render toggle('chatInputAutoHide', 'chatInputAutoHide')}
+        {#if settings.chatInputAutoHide}
+          {@render slider('chatInputHideDelay', 'hideAfter', 1, 30, 's')}
+        {/if}
+        {@render slider('inputFontSize', 'fontSize', 10, 28)}
+        {@render colorRow('inputTextColor', null, 'inputTextColor')}
+        {@render colorRow('inputBackgroundColor', 'inputBackgroundOpacity', 'inputBackground')}
+        {@render colorOption('inputBorder', 'inputBorderColor', 'inputBorderOpacity', 'inputBorder')}
+        {#if settings.inputBorder}
+          {@render slider('inputBorderWidth', 'inputBorderWidth', 1, 6)}
+        {/if}
+        {@render slider('inputRadius', 'inputRadius', 0, 24)}
+        {@render slider('inputPadding', 'inputPadding', 0, 16)}
+        <p class="hint">{t('chatInputHint')}</p>
+      {/if}
     </section>
 
     <section>
@@ -548,6 +604,19 @@
     font-size: 12px;
     font-weight: 500;
     color: var(--muted);
+  }
+
+  .labeled-color {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 4px 0;
+  }
+
+  .labeled-color.inline {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
   }
 
   .color-row {
