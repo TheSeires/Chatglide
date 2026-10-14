@@ -338,6 +338,7 @@
       <h2>{t('sectionChat')}</h2>
       {@render toggle('forceAllMessages', 'forceAllMessages')}
       {@render toggle('showAvatars', 'showAvatars')}
+      {@render toggle('markOwnMessages', 'markOwnMessages')}
       {@render toggle('showTime', 'showTime')}
       {#if settings.showTime}
         {@render toggle('time24h', 'time24h')}

@@ -41,6 +41,11 @@ function findInput() {
   return document.querySelector<HTMLElement>(INPUT);
 }
 
+// YouTube turns typed emojis into <img> elements, so an emoji-only message has no text content.
+function hasContent(input: HTMLElement) {
+  return Boolean(input.textContent?.trim() || input.querySelector('img'));
+}
+
 function queryFirst(selectors: string[]) {
   for (const selector of selectors) {
     const found = document.querySelector<HTMLElement>(selector);
@@ -72,7 +77,7 @@ export async function sendText(text: string): Promise<boolean> {
   document.execCommand('selectAll');
   document.execCommand('delete');
   document.execCommand('insertText', false, message);
-  if (!input.textContent?.trim()) return false;
+  if (!hasContent(input)) return false;
 
   const button = await waitFor(
     () => {
@@ -85,7 +90,17 @@ export async function sendText(text: string): Promise<boolean> {
   button.click();
 
   // YouTube empties the box once the message is accepted.
-  return Boolean(await waitFor(() => !input.textContent?.trim(), 3000));
+  return Boolean(await waitFor(() => !hasContent(input), 3000));
+}
+
+const SELF_NAME = '#input-panel yt-live-chat-author-chip #author-name';
+const SELF_AVATAR = '#input-panel #avatar img';
+
+/** The signed-in user as YouTube shows them above its chat box; empty name if unknown. */
+export function readSelf(): ChatParticipant {
+  const name = document.querySelector(SELF_NAME)?.textContent?.trim() ?? '';
+  const src = document.querySelector<HTMLImageElement>(SELF_AVATAR)?.src ?? '';
+  return { name, avatar: isAvatarUrl(src) ? src : '' };
 }
 
 const EMOJI_CHARACTER = /\p{Extended_Pictographic}/u;

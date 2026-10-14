@@ -14,7 +14,8 @@ export interface ChatMessage {
   runs: ChatRun[];
 }
 
-const AVATAR_URL = /^https:\/\/yt\d\.(?:ggpht|googleusercontent)\.com\//;
+// Channels without their own picture use their Google account photo from lh*.googleusercontent.com.
+const AVATAR_URL = /^https:\/\/(?:yt\d\.(?:ggpht|googleusercontent)|lh\d\.googleusercontent)\.com\//;
 
 /** Only YouTube's own image hosts are accepted, so a page script can't inject other URLs. */
 export function isAvatarUrl(url: string): boolean {
@@ -75,6 +76,7 @@ export type ChatEvent = Tagged<
   | { type: 'send-result'; requestId: string; ok: boolean }
   | { type: 'emojis'; categories: EmojiCategory[] }
   | { type: 'participants'; participants: ChatParticipant[] }
+  | { type: 'self'; self: ChatParticipant }
 >;
 
 /** Sent from the watch page to the chat iframe. */
@@ -112,6 +114,8 @@ export function isChatEvent(data: unknown): data is ChatEvent {
       return Array.isArray(event.categories);
     case 'participants':
       return Array.isArray(event.participants);
+    case 'self':
+      return typeof event.self === 'object' && event.self !== null;
     default:
       return false;
   }

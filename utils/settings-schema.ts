@@ -40,6 +40,8 @@ export interface OverlaySettings {
   /** Switch YouTube's chat from "Top chat" to "Live chat" (all messages) when it loads. */
   forceAllMessages: boolean;
   showAvatars: boolean;
+  /** Add a "(You)" marker after the viewer's own name. */
+  markOwnMessages: boolean;
   showTime: boolean;
   /** Show live chat times as 24-hour ("19:41") instead of YouTube's 12-hour style. */
   time24h: boolean;
@@ -117,6 +119,7 @@ export const DEFAULT_SETTINGS: OverlaySettings = {
   showNativeChat: false,
   forceAllMessages: true,
   showAvatars: true,
+  markOwnMessages: true,
   showTime: false,
   time24h: false,
   fontSize: 14,
@@ -193,6 +196,7 @@ const SCHEMA: Record<keyof OverlaySettings, FieldSpec> = {
   showNativeChat: bool,
   forceAllMessages: bool,
   showAvatars: bool,
+  markOwnMessages: bool,
   showTime: bool,
   time24h: bool,
   fontSize: num(8, 48),

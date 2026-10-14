@@ -39,6 +39,8 @@ export const chat = $state({
   emojiCategories: [] as EmojiCategory[],
   /** Viewers in YouTube's participant list, for mention suggestions. */
   participants: [] as ChatParticipant[],
+  /** The signed-in viewer, as YouTube's chat box shows them; empty name if unknown. */
+  self: { name: '', avatar: '' } as ChatParticipant,
 });
 
 const ids = new Set<string>();
@@ -53,6 +55,7 @@ export function resetChat(active: boolean, frame: MessageEventSource | null = nu
   chat.input = { available: false, reason: '', maxLength: 200 };
   chat.emojiCategories = [];
   chat.participants = [];
+  chat.self = { name: '', avatar: '' };
   chat.revision++;
   ids.clear();
   chatFrame = frame;
@@ -96,6 +99,7 @@ export function handleChatEvent(event: ChatEvent, frame: MessageEventSource | nu
     chat.emojiCategories = sanitizeCategories(event.categories);
     releaseFocusFromChatFrame();
   } else if (event.type === 'participants') chat.participants = sanitizeParticipants(event.participants);
+  else if (event.type === 'self') chat.self = sanitizeParticipants([event.self])[0] ?? { name: '', avatar: '' };
 }
 
 // Loading emojis opens YouTube's picker in the hidden chat frame, which can pull focus into it;
@@ -211,3 +215,17 @@ html[${HIDE_NATIVE_ATTR}] ytd-watch-flexy[fullscreen] #panels-full-bleed-contain
   min-width: 0 !important;
 }
 `;
+
+const nameKey = (name: string) => name.trim().replace(/^@/, '').toLowerCase();
+
+/** True if the signed-in viewer wrote `message`. */
+export function isOwnMessage(message: ChatMessage): boolean {
+  return chat.self.name !== '' && nameKey(message.author) === nameKey(chat.self.name);
+}
+
+/** The viewer's own picture: from YouTube's chat box, else from the page's account button. */
+export function selfAvatar(): string {
+  if (chat.self.avatar) return chat.self.avatar;
+  const src = document.querySelector<HTMLImageElement>('#masthead #avatar-btn img')?.src ?? '';
+  return isAvatarUrl(src) ? src : '';
+}

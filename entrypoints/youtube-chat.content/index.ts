@@ -9,7 +9,7 @@ import {
   type ChatRun,
 } from '@/utils/chat';
 import { loadSettings, settings } from '@/utils/settings.svelte';
-import { isParticipantNode, readEmojis, readInputState, readParticipants, sendText } from './chatbox';
+import { isParticipantNode, readEmojis, readInputState, readParticipants, readSelf, sendText } from './chatbox';
 
 const MESSAGE_TAG = 'YT-LIVE-CHAT-TEXT-MESSAGE-RENDERER';
 // Items of the chat mode dropdown. In every language the first is "Top chat" and
@@ -88,6 +88,15 @@ export default defineContentScript({
     // Names inside existing rows can change without rows being added, so also re-check now and then.
     ctx.setInterval(scheduleParticipants, 15000);
 
+    let reportedSelf = '';
+    const syncSelf = () => {
+      const self = readSelf();
+      const key = JSON.stringify(self);
+      if (key === reportedSelf) return;
+      reportedSelf = key;
+      post({ source: CHAT_EVENT_SOURCE, type: 'self', self });
+    };
+
     ctx.addEventListener(window, 'message', (event) => {
       if (event.source !== window.parent || event.origin !== location.origin) return;
       const command = event.data;
@@ -108,6 +117,7 @@ export default defineContentScript({
     syncMode();
     syncInputState();
     syncParticipants();
+    syncSelf();
 
     // Watch the whole document rather than the item list: YouTube may rebuild the
     // list, e.g. when switching between Top chat and Live chat.
@@ -134,6 +144,7 @@ export default defineContentScript({
       // Switching modes rebuilds the list, so a mode change always lands here too.
       syncMode();
       syncInputState();
+      syncSelf();
     });
     observer.observe(document.body, { childList: true, subtree: true });
     ctx.onInvalidated(() => {

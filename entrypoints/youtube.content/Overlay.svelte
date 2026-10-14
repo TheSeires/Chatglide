@@ -1,11 +1,23 @@
+<script lang="ts" module>
+  // Only scrolls the user causes may stop or resume following the newest message. Scrolls from layout
+  // changes (fullscreen, resizing, images loading, animations) would otherwise unpin the list by accident.
+  let userScrollUntil = 0;
+
+  /** Wheel, touch and key scrolls; wheel events are reported by the content script, which intercepts them. */
+  export function noteUserScroll() {
+    userScrollUntil = performance.now() + 600;
+  }
+</script>
+
 <script lang="ts">
+  import { untrack } from 'svelte';
   import { backOut, cubicOut } from 'svelte/easing';
   import { fade, fly, scale, slide, type TransitionConfig } from 'svelte/transition';
   import { saveSettings, settings, withOpacity } from '@/utils/settings.svelte';
   import { isAvatarUrl, type ChatMode } from '@/utils/chat';
   import { t } from '@/utils/i18n';
   import { to24Hour } from '@/utils/time';
-  import { chat, setChatMode, type ShownMessage } from './chat.svelte';
+  import { chat, isOwnMessage, selfAvatar, setChatMode, type ShownMessage } from './chat.svelte';
   import Composer from './Composer.svelte';
   import { overlayEnabled, setVideoOverride } from './visibility.svelte';
 
@@ -19,7 +31,7 @@
   let collapsed = $state(false);
   let list: HTMLOListElement | undefined = $state();
   // Follow new messages unless the user has scrolled up to read older ones.
-  let followLatest = true;
+  let followLatest = $state(true);
 
   // Player size (the frame fills the shadow host, which covers the player).
   let frameWidth = $state(0);
@@ -45,28 +57,75 @@
     return free > 0 ? clamp((offset - MARGIN) / free, 0, 1) : 0;
   }
 
+  let draggingScrollbar = false;
+
   function onScroll() {
     if (!list) return;
-    followLatest = list.scrollHeight - list.scrollTop - list.clientHeight < 24;
+    if (list.scrollHeight - list.scrollTop - list.clientHeight < 24) followLatest = true;
+    else if (draggingScrollbar || performance.now() < userScrollUntil) followLatest = false;
+    else scrollToLatest();
   }
 
   function scrollToLatest() {
     if (list && followLatest) list.scrollTop = list.scrollHeight;
   }
 
+  function resumeFollowing() {
+    followLatest = true;
+    scrollToLatest();
+  }
+
+  // Like Twitch's "paused" bar: how many messages arrived since following stopped.
+  let pausedAfter: string | null = null;
+  $effect.pre(() => {
+    pausedAfter = followLatest ? null : untrack(() => chat.messages.at(-1)?.id ?? null);
+  });
+  const newWhilePaused = $derived.by(() => {
+    if (followLatest) return 0;
+    const index = chat.messages.findIndex((m) => m.id === pausedAfter);
+    return chat.messages.length - 1 - index;
+  });
+
+  function onListPointerDown(event: PointerEvent) {
+    // Only the scrollbar lies outside the list's client area.
+    if (!list || event.clientX - list.getBoundingClientRect().left <= list.clientWidth) return;
+    draggingScrollbar = true;
+    window.addEventListener('pointerup', () => (draggingScrollbar = false), { once: true });
+  }
+
   $effect(() => {
     chat.revision;
     settings.fontSize;
     settings.showTime;
+    settings.showAvatars;
+    settings.markOwnMessages;
+    chat.self;
     scrollToLatest();
   });
 
-  // The list changes size when the header hides/shows or the overlay is resized.
+  // Re-pin whenever the list or anything in it changes size: resizing, fullscreen,
+  // the header hiding, avatars and emojis loading, messages growing in.
   $effect(() => {
     if (!list) return;
-    const observer = new ResizeObserver(scrollToLatest);
-    observer.observe(list);
-    return () => observer.disconnect();
+    const target = list;
+    const resizes = new ResizeObserver(scrollToLatest);
+    resizes.observe(target);
+    for (const item of target.children) resizes.observe(item);
+    const mutations = new MutationObserver((records) => {
+      for (const record of records) {
+        for (const node of record.addedNodes) if (node instanceof Element) resizes.observe(node);
+        for (const node of record.removedNodes) if (node instanceof Element) resizes.unobserve(node);
+      }
+      scrollToLatest();
+    });
+    mutations.observe(target, { childList: true });
+    const onLoad = () => scrollToLatest();
+    target.addEventListener('load', onLoad, true);
+    return () => {
+      resizes.disconnect();
+      mutations.disconnect();
+      target.removeEventListener('load', onLoad, true);
+    };
   });
 
   let hovering = $state(false);
@@ -270,20 +329,29 @@
         </div>
       </div>
       {#if !collapsed}
+        <!-- svelte-ignore a11y_no_noninteractive_element_interactions (only tells user scrolls from layout scrolls) -->
         <ol
           bind:this={list}
           onscroll={onScroll}
+          ontouchmove={noteUserScroll}
+          onkeydown={noteUserScroll}
+          onpointerdown={onListPointerDown}
           class:emptying={fadeMode && visibleMessages.length === 0}
         >
           {#each visibleMessages as message (message.id)}
+            {@const own = isOwnMessage(message)}
+            {@const avatar = message.avatar || (own ? selfAvatar() : '')}
             <li in:enter={message} out:leave>
               {#if settings.showTime && message.time}
                 <span class="time">{settings.time24h ? to24Hour(message.time) : message.time}</span>
               {/if}
-              {#if settings.showAvatars && message.avatar && isAvatarUrl(message.avatar)}
-                <img class="avatar" src={message.avatar} alt="" loading="lazy" referrerpolicy="no-referrer" />
+              {#if settings.showAvatars && avatar && isAvatarUrl(avatar)}
+                <img class="avatar" src={avatar} alt="" loading="lazy" referrerpolicy="no-referrer" />
               {/if}
-              <span class="author {message.authorType}">{message.author}</span>
+              <span class="author {message.authorType}">
+                {message.author}
+                {#if own && settings.markOwnMessages}<span class="you">{t('youMarker')}</span>{/if}
+              </span>
               {#each message.runs as run}
                 {#if 'emoji' in run}
                   <img class="emoji" src={run.emoji} alt={run.alt} />
@@ -297,6 +365,15 @@
               <li class="placeholder">{t('waiting')}</li>
             {/if}
           {/each}
+          {#if !fadeMode && !followLatest}
+            <li class="paused" transition:fade={{ duration: 150 }}>
+              <button type="button" title={t('autoScrollResume')} onclick={resumeFollowing}>
+                {t('autoScrollPaused')}
+                {#if newWhilePaused > 0}<span class="new-count">+{newWhilePaused > 99 ? '99+' : newWhilePaused}</span>{/if}
+                ↓
+              </button>
+            </li>
+          {/if}
         </ol>
         {#if settings.chatInput && (chat.input.available || chat.input.reason)}
           <Composer {hovering} />
@@ -405,7 +482,12 @@
     margin: 0;
     padding: 0 var(--list-padding) var(--list-padding);
     list-style: none;
+    /* Clips enter animations that start off to the side instead of showing a horizontal scrollbar. */
+    overflow-x: hidden;
     overflow-y: auto;
+    /* Following the newest message is handled in script; the browser's own anchoring fights it. */
+    overflow-anchor: none;
+    overscroll-behavior: contain;
     overflow-wrap: anywhere;
     scrollbar-width: thin;
     scrollbar-color: rgb(255 255 255 / 0.3) transparent;
@@ -504,10 +586,53 @@
     color: #2ba640;
   }
 
+  .you {
+    font-weight: 400;
+    opacity: 0.75;
+  }
+
   .emoji {
     width: 1.3em;
     height: 1.3em;
     vertical-align: middle;
+  }
+
+  /* Zero height and stuck to the bottom of the list, so the bar floats over messages without moving them. */
+  li.paused {
+    position: sticky;
+    bottom: 0;
+    height: 0;
+    margin: 0;
+    padding: 0;
+    background: none;
+    backdrop-filter: none;
+  }
+
+  .paused button {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 4px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    background: rgb(24 24 27 / 0.92);
+    font-size: 0.85em;
+    font-weight: 500;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .paused button:hover {
+    background: rgb(50 50 56 / 0.95);
+  }
+
+  .new-count {
+    margin-left: 6px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: rgb(255 255 255 / 0.2);
   }
 
   .placeholder {

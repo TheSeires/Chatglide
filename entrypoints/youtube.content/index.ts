@@ -2,7 +2,7 @@ import { mount, unmount } from 'svelte';
 import { isChatEvent } from '@/utils/chat';
 import { loadSettings } from '@/utils/settings.svelte';
 import { isVisibilityRequest } from '@/utils/visibility';
-import Overlay from './Overlay.svelte';
+import Overlay, { noteUserScroll } from './Overlay.svelte';
 import PlayerButton from './PlayerButton.svelte';
 import { handleChatEvent, PAGE_CSS, resetChat, syncNativeChatVisibility } from './chat.svelte';
 import {
@@ -68,6 +68,24 @@ export default defineContentScript({
       ui.shadowHost.addEventListener(type, (event) => event.stopPropagation());
     }
 
+    // In fullscreen YouTube opens its suggested videos on wheel scrolls over the player.
+    // Caught on window in the capture phase so none of YouTube's wheel listeners see scrolls
+    // over the overlay; the overlay's own lists still scroll, as that's the browser's default action.
+    ctx.addEventListener(
+      window,
+      'wheel',
+      (event) => {
+        const path = event.composedPath();
+        const hostIndex = path.indexOf(ui.shadowHost);
+        if (hostIndex < 0 || event.ctrlKey) return;
+        event.stopPropagation();
+        noteUserScroll();
+        // Nothing in the overlay left to scroll: don't let the scroll chain on to the page.
+        if (!path.slice(0, hostIndex).some((node) => canScroll(node, event))) event.preventDefault();
+      },
+      { capture: true, passive: false },
+    );
+
     // YouTube is a single-page app: the player can be created, replaced or
     // removed without a page load. autoMount watches for the anchor and
     // mounts/unmounts the overlay as it comes and goes.
@@ -88,3 +106,18 @@ export default defineContentScript({
     button.autoMount();
   },
 });
+
+/** True if `node` is an element that can still scroll in the wheel's direction. */
+function canScroll(node: EventTarget, event: WheelEvent): boolean {
+  if (!(node instanceof Element)) return false;
+  const { overflowY, overflowX } = getComputedStyle(node);
+  if (event.deltaY !== 0 && /auto|scroll/.test(overflowY)) {
+    const max = node.scrollHeight - node.clientHeight;
+    if (event.deltaY < 0 ? node.scrollTop > 0 : node.scrollTop < max - 1) return true;
+  }
+  if (event.deltaX !== 0 && /auto|scroll/.test(overflowX)) {
+    const max = node.scrollWidth - node.clientWidth;
+    if (event.deltaX < 0 ? node.scrollLeft > 0 : node.scrollLeft < max - 1) return true;
+  }
+  return false;
+}
