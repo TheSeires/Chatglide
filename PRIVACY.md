@@ -1,6 +1,6 @@
 # Chatglide privacy policy
 
-_Last updated: October 7, 2026_
+_Last updated: October 14, 2026_
 
 Chatglide is a browser extension that shows YouTube live chat as an overlay on top of the video.
 
@@ -9,7 +9,7 @@ Chatglide is a browser extension that shows YouTube live chat as an overlay on t
 - It does not collect, store, sell or share any personal data.
 - It does not send anything to any server. The extension has no backend and makes no network requests of its own.
 - It does not use analytics, tracking, cookies or advertising.
-- It does not read your YouTube account, watch history, or anything on the page beyond the chat and the current video's ID and channel (used for per-video and per-channel overlay settings).
+- It does not read your YouTube account, watch history, or anything on the page beyond the chat, your own name and profile picture as YouTube shows them next to the chat box, and the current video's ID and channel (used for per-video and per-channel overlay settings).
 
 ## What stays on your device
 
@@ -17,6 +17,7 @@ Chatglide is a browser extension that shows YouTube live chat as an overlay on t
 - **Settings export and import**: exporting saves your settings as a file on your device only when you click Export; importing reads only the file you choose. Neither sends anything anywhere.
 - **Messages you write** in the overlay's chat input are typed into YouTube's own chat box on the page and sent by YouTube, exactly as if you used YouTube's chat directly. Chatglide doesn't store or send them anywhere else.
 - **Chat messages** that YouTube already shows on the page are read from the page and displayed in the overlay while you watch. They are kept only in memory and discarded when you leave the video.
+- **Your name and profile picture**, as YouTube shows them on the page, are used only to show your picture and an optional "(You)" tag on your own messages in the overlay. They are kept only in memory, like chat messages.
 
 ## Permissions
 

@@ -22,7 +22,7 @@ Chatglide shows YouTube live chat on top of the video instead of beside it, so t
 • Chat right on the video: a clean overlay in the corner of the player, also in fullscreen.
 • YouTube's chat panel steps aside, so the video uses the whole width.
 • Chat right from the overlay: a message box with an emoji picker, sent through YouTube's own chat (sign-in required). Show it always or only on hover, and style it.
-• Profile pictures next to names, if you like.
+• Profile pictures next to names, if you like, including your own, with an optional "(You)" tag on your messages.
 • All messages or Top chat: switch right from the overlay header, or always open in all-messages mode.
 • Replays stay in sync: seeking back or forward in a chat replay updates the overlay.
 • Disappearing messages: new messages show for a few seconds, then fade away. Keep the newest few on screen, or none.
@@ -47,7 +47,7 @@ Chatglide показує чат YouTube поверх відео, а не збо�
 • Чат прямо на відео: акуратний оверлей у куті плеєра, зокрема в повноекранному режимі.
 • Панель чату YouTube відходить убік, і відео займає всю ширину.
 • Пишіть просто з оверлею: поле введення з емодзі, повідомлення надсилаються через чат YouTube (потрібно увійти). Показуйте його завжди або лише при наведенні та налаштовуйте вигляд.
-• Аватари поруч з іменами, за бажанням.
+• Аватари поруч з іменами, за бажанням, зокрема ваш власний, і позначка «(Ви)» біля ваших повідомлень, яку можна вимкнути.
 • Усі повідомлення або найкраще в чаті: перемикайте просто в заголовку оверлею або завжди відкривайте всі повідомлення.
 • Записи трансляцій синхронізовані: перемотування вперед чи назад оновлює оверлей.
 • Зникаючі повідомлення: нові повідомлення показуються кілька секунд, а потім зникають. Кілька найновіших можна залишати на екрані.
