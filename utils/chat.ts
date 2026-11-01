@@ -14,6 +14,12 @@ export interface ChatMessage {
   runs: ChatRun[];
 }
 
+/** A new message plus where YouTube put it in its list. */
+export interface AddedMessage extends ChatMessage {
+  /** Id of the message right after it in YouTube's list, or null if it's the newest. */
+  before: string | null;
+}
+
 // Channels without their own picture use their Google account photo from lh*.googleusercontent.com.
 const AVATAR_URL = /^https:\/\/(?:yt\d\.(?:ggpht|googleusercontent)|lh\d\.googleusercontent)\.com\//;
 
@@ -70,7 +76,7 @@ type Tagged<T> = T & { source: typeof CHAT_EVENT_SOURCE };
 /** Sent from the chat iframe to the watch page via postMessage. */
 export type ChatEvent = Tagged<
   | { type: 'reset' }
-  | { type: 'update'; added: ChatMessage[]; removed: string[] }
+  | { type: 'update'; added: AddedMessage[]; removed: string[] }
   | { type: 'mode'; mode: ChatMode }
   | { type: 'input-state'; state: InputState }
   | { type: 'send-result'; requestId: string; ok: boolean }

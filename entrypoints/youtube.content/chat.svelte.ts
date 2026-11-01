@@ -2,6 +2,7 @@ import {
   CHAT_EVENT_SOURCE,
   isAvatarUrl,
   isEmojiImageUrl,
+  type AddedMessage,
   type ChatCommand,
   type ChatEvent,
   type ChatMessage,
@@ -153,21 +154,30 @@ function sanitizeCategories(categories: EmojiCategory[]): EmojiCategory[] {
     .filter((c) => c.emojis.length > 0);
 }
 
-function updateChat(added: ChatMessage[], removed: string[]) {
+function updateChat(added: AddedMessage[], removed: string[]) {
   let messages = chat.messages;
   // The first batch after a reset, or one that replaces everything (a replay seek), is history.
   const backlog = messages.length === 0 || removed.length >= messages.length;
   if (removed.length) {
     for (const id of removed) ids.delete(id);
     messages = messages.filter((m) => ids.has(m.id));
+  } else {
+    messages = messages.slice();
   }
 
+  // Place each message where YouTube has it, not just at the end: YouTube sometimes inserts
+  // older messages above newer ones. Going from the last one back means the message each
+  // one is placed before is already in the list.
   const receivedAt = Date.now();
-  const fresh = added
-    .filter((m) => !ids.has(m.id))
-    .map((m): ShownMessage => ({ ...m, receivedAt, backlog }));
-  for (const m of fresh) ids.add(m.id);
-  messages = messages.concat(fresh);
+  for (let i = added.length - 1; i >= 0; i--) {
+    const { before, ...message } = added[i];
+    if (ids.has(message.id)) continue;
+    ids.add(message.id);
+    const shown: ShownMessage = { ...message, receivedAt, backlog };
+    const index = typeof before === 'string' ? messages.findIndex((m) => m.id === before) : -1;
+    if (index === -1) messages.push(shown);
+    else messages.splice(index, 0, shown);
+  }
 
   if (messages.length > MAX_MESSAGES) {
     for (const m of messages.slice(0, messages.length - MAX_MESSAGES)) ids.delete(m.id);

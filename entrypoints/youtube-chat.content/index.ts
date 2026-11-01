@@ -2,6 +2,7 @@ import {
   CHAT_EVENT_SOURCE,
   isAvatarUrl,
   isChatCommand,
+  type AddedMessage,
   type ChatEvent,
   type ChatMessage,
   type EmojiCategory,
@@ -170,11 +171,26 @@ function setMode(mode: ChatMode) {
 }
 
 function sendUpdate(addedElements: Element[], removedElements: Element[]) {
-  const added = addedElements.map(parseMessage).filter((m) => m !== null);
+  // YouTube doesn't only append: it can insert older messages above newer ones (e.g. when
+  // it reloads or backfills the list), so each message carries its position in the list.
+  const added = addedElements
+    .sort((a, b) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1))
+    .map((el): AddedMessage | null => {
+      const message = parseMessage(el);
+      return message && { ...message, before: nextMessageId(el) };
+    })
+    .filter((m) => m !== null);
   const removed = removedElements.map((el) => el.id).filter(Boolean);
   if (added.length || removed.length) {
     post({ source: CHAT_EVENT_SOURCE, type: 'update', added, removed });
   }
+}
+
+function nextMessageId(el: Element): string | null {
+  for (let next = el.nextElementSibling; next; next = next.nextElementSibling) {
+    if (next.tagName === MESSAGE_TAG && next.id) return next.id;
+  }
+  return null;
 }
 
 function parseMessage(el: Element): ChatMessage | null {
